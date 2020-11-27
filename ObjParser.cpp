@@ -3,7 +3,8 @@
 #include <string.h>
 #include "ObjParser.h"
 #include "bmpfuncs.h"
-
+#include <iostream>
+using namespace std;
 
 #define M_PI 3.1415926535897
 using std::cos;
@@ -17,28 +18,42 @@ volatile float fps;
 /* texture mapping set variable */
 GLuint textureMonkey;
 
-
+int joy[5] = { 0 };
 bool antialiase_on = true;
 double radius = 10;
 double theta = 45, phi = 45;
 double cam[3];
 double center[3] = { 0, 0, 0 };
 double up[3] = { 0, 1, 0 };
-
+///////////////////////////////
+char dp[50];
+char cider[50];
+char coke[50];
+char present1[50];
+char present2[50];
+char present3[50];
+char joystickboard[50];
+char joystick[50];
+char pushbutton[50];
+char stick[50];
+///////////////////////////
  //object var
-ObjParser* dp;
-ObjParser* bear;
-ObjParser* cider;
-ObjParser* coke;
-ObjParser* present1;
-ObjParser* present2;
-ObjParser* present3;
+ObjParser* Dp;
+ObjParser* Cider;
+ObjParser* Coke;
+ObjParser* Present1;
+ObjParser* Present2;
+ObjParser* Present3;
+ObjParser* Joystickboard;
+ObjParser* Joystick;
+ObjParser* Pushbutton;
+ObjParser* Stick;
 
 // user-defined function
 void init(void);
 void light_default();
 void add_menu();
-void get_resource(const char* str);
+void set_obj();
 void mouse(int, int, int, int);
 void mouseWheel(int, int, int, int);
 void motion(int, int);
@@ -47,6 +62,8 @@ void keyboard(unsigned char, int, int);
 void special_keyboard(int, int, int);
 void draw(void);
 void resize(int, int);
+void dprack();
+void joystick_op();
 //...
 
 /* Main method */
@@ -65,15 +82,9 @@ int main(int argc, char** argv)
 	// pop-up 메뉴 등록 함수
 	add_menu();
 
-	// 리소스 로드 함수
-	//get_resource("img/obj/bear2.obj");
-	bear = new ObjParser("img/obj/bear2.obj");
-	dp = new ObjParser("img/obj/displayrack_3.obj");
-	cider = new ObjParser("img/obj/Cider.obj");
-	coke = new ObjParser("img/obj/Cider.obj");
-	present1 = new ObjParser("img/obj/Present.obj");
-	present2 = new ObjParser("img/obj/Present.obj");
-	present3 = new ObjParser("img/obj/Present.obj");
+	// obj 로드 함수
+	set_obj();
+	
 
 	/* Create a single window with a keyboard and display callback */
 	glutMouseFunc(&mouse);
@@ -94,7 +105,7 @@ int main(int argc, char** argv)
 }
 
 void light_default() {
-	glClearColor(0.f, 0.f, 0.f, 1.0f);
+	glClearColor(1.f, 1.f, 1.f, 1.0f);
 
 	/* Light0 조명 관련 설정 */
 	GLfloat ambientLight[] = { 0.3f, 0.3f, 0.3f, 1.0f };
@@ -200,21 +211,29 @@ void init()
 void special_keyboard(int key, int x, int y)
 {
 	if (key == GLUT_KEY_LEFT) {
-		phi -= 5;
-		if (phi < 0) phi = 355;
+		joy[0] = 1;
+		joy[1] = 0;
+		joy[2] = 0;
+		joy[3] = 0;
 	}
 	else if (key == GLUT_KEY_RIGHT) {
-		phi += 5;
-		if (phi >= 360) phi = 0;
+		joy[0] = 0;
+		joy[1] = 1;
+		joy[2] = 0;
+		joy[3] = 0;
 	}
 	else if (key == GLUT_KEY_UP) {
-		if (theta > 10) theta -= 5;
+		joy[0] = 0;
+		joy[1] = 0;
+		joy[2] = 1;
+		joy[3] = 0;
 	}
 	else if (key == GLUT_KEY_DOWN) {
-		if (theta < 170) theta += 5;
+		joy[0] = 0;
+		joy[1] = 0;
+		joy[2] = 0;
+		joy[3] = 1;
 	}
-
-	std::cout << "theta : " << theta << ", phi : " << phi << "\n";
 	glutPostRedisplay();
 }
 
@@ -223,26 +242,44 @@ void keyboard(unsigned char key, int x, int y)
 {
 	switch (key)
 	{
-		/* Exit on escape key press */
-	case '\x1B':
-	{
-		exit(EXIT_SUCCESS);
-		break;
-	}
-	case 'a':
-	{
-		if (antialiase_on) {
-			antialiase_on = false;
-			glDisable(GL_POLYGON_SMOOTH);
-		}
-		else
+			/* Exit on escape key press */
+		case '\x1B':
 		{
-			antialiase_on = true;
-			glEnable(GL_POLYGON_SMOOTH);
+			exit(EXIT_SUCCESS);
+			break;
 		}
-		break;
+		case 'g':
+		{
+			phi -= 5;
+			if (phi < 0) phi = 355;
+			break;
+		}
+		case 'h':
+		{
+			phi += 5;
+			if (phi >= 360) phi = 0;
+			break;
+		}
+		case 'y':
+		{
+			//if (theta > 10) 
+				theta -= 5;
+				break;
+		}
+		case 'b':
+		{
+			//if (theta < 170) 
+				theta += 5;
+			break;
+		}
+		case 32://space bar//push
+		{
+			joy[4] = 1;
+			break;
+		}
 	}
-	}
+
+	std::cout << "theta : " << theta << ", phi : " << phi << "\n";
 	glutPostRedisplay();
 }
 
@@ -295,43 +332,10 @@ void draw_obj(ObjParser* objParser)
 	glEnd();
 }
 
-void draw_obj_with_texture(ObjParser* objParser)
+void draw_obj_with_texture(ObjParser *objParser,char buf[50])
 {
-	if (objParser == dp)
-	{
-		char buf[] = "img/obj/displayrack_3.bmp";
-		setTextureMapping(buf);
-	}
-	if (objParser == bear)
-	{
-		char buf[] = "img/obj/bear2.bmp";
-		setTextureMapping(buf);
-	}
-	if (objParser == cider)
-	{
-		char buf[] = "img/obj/Cider.bmp";
-		setTextureMapping(buf);
-	}
-	if (objParser == coke)
-	{
-		char buf[] = "img/obj/Coke.bmp";
-		setTextureMapping(buf);
-	}
-	if (objParser == present1)
-	{
-		char buf[] = "img/obj/present1.bmp";
-		setTextureMapping(buf);
-	}
-	if (objParser == present2)
-	{
-		char buf[] = "img/obj/present2.bmp";
-		setTextureMapping(buf);
-	}
-	if (objParser == present3)
-	{
-		char buf[] = "img/obj/present3.bmp";
-		setTextureMapping(buf);
-	}
+	
+	setTextureMapping(buf);
 	glDisable(GL_BLEND);
 	// glEnable(GL_TEXTURE_2D);	// texture 색 보존을 위한 enable
 	glBindTexture(GL_TEXTURE_2D, textureMonkey);
@@ -381,73 +385,53 @@ void draw()
 	glLoadIdentity();
 	glEnable(GL_DEPTH_TEST);
 
+	
+
 	cam[0] = radius * sin(theta * M_PI / 180) * sin(phi * M_PI / 180);
 	cam[1] = radius * cos(theta * M_PI / 180);
 	cam[2] = radius * sin(theta * M_PI / 180) * cos(phi * M_PI / 180);
 	glDisable(GL_LIGHT1);
 	
 	gluLookAt(cam[0], cam[1], cam[2], center[0], center[1], center[2], up[0], up[1], up[2]);
-
 	
 
-	glPushMatrix();
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_LIGHTING);
-	//glPopMatrix();
+	joystick_op();
+	//dprack();
 	
-	glColor3f(1.f, 1.f, 1.f);
-	glScalef(2, 2, 2);
-	draw_obj_with_texture(dp);//(0,0,0)
 
-	glPopMatrix();
-	glPushMatrix();
 
-	glTranslatef(0, -0.17, 0);
-	glScalef(0.6, 0.6, 0.6);
-	glRotatef(90, 1, 0, 0);
-	draw_obj_with_texture(present1);
+	if (joy[0] == 1)//좌
+	{
+		glTranslatef(-10, 0, 0);
+		joy[0] = 0;
 
-	glPopMatrix();
-	glPushMatrix();
-
-	glTranslatef(0, -1.7, 0);
-	glScalef(0.5, 0.5, 0.5);
-	draw_obj_with_texture(cider);
-
-	glPopMatrix();
-	glPushMatrix();
-
-	glTranslatef(0, -3.2, 0);
-	glScalef(0.05, 0.04, 0.05);
-	glRotatef(180, 0, 0, 1);
-	glRotatef(180, 1, 0, 0);
-	draw_obj_with_texture(bear);
+	}
+	else if (joy[1] == 1)//우
+	{
+		glTranslatef(10,0,0);
+		joy[1] = 0;
+	}
+	else if (joy[2] == 1)//위
+	{
+		glTranslatef(0,10,0);
+		joy[2] = 0;
+	}
+	else if (joy[3] == 1)//아래
+	{
+		glTranslatef(0,-10,0);
+		joy[3] = 0;
+	}
+	else if (joy[4] == 1)//push
+	{
+		glTranslatef(0, 0, 10);
+		joy[4] = 0;
+	}
+	glTranslatef(5, 0, 0);
+	glScalef(0.5, 2, 0.5);
+	draw_obj_with_texture(Stick,stick);
 	
-	glPopMatrix();
-	glPushMatrix();
-
-	glTranslatef(0, -0.17, -2.85);
-	glScalef(0.6, 0.6, 0.6);
-	glRotatef(90, 1, 0, 0);
-	draw_obj_with_texture(present2);
-	
-	glPopMatrix();
-	glPushMatrix();
-
-	glTranslatef(0, -1.7, -2.85);
-	glScalef(0.5, 0.5, 0.5);
-	draw_obj_with_texture(coke);
-
-	glPopMatrix();
-	glPushMatrix();
-
-	glTranslatef(0, -3.2, -2.85);
-	glScalef(0.6, 0.6, 0.6);
-	glRotatef(90, 1, 0, 0);
-	draw_obj_with_texture(present3);
-	//draw_obj_with_texture(present1);
-
-
 	glutSwapBuffers();
 	glFlush();
 }
@@ -491,7 +475,7 @@ void motion(int x, int y)
 void main_menu(int option)
 {
 	if (option == 99) exit(0);
-	else if (option == 1) {
+	else if (option == 10) {
 		radius = 10;
 		theta = 45; phi = 45;
 	}
@@ -506,7 +490,8 @@ void sub_menu(int option)
 void add_menu()
 {
 	int mainmenu1 = glutCreateMenu(&main_menu);
-	glutAddMenuEntry("Init", 1);
+	
+	glutAddMenuEntry("Init", 10);
 	glutAddMenuEntry("Quit", 99);
 	glutAttachMenu(GLUT_RIGHT_BUTTON);
 }
@@ -536,10 +521,111 @@ void resize(int width, int height)
 	glMatrixMode(GL_MODELVIEW);
 }
 
-void get_resource(const char* str)
+void set_obj()
 {
-	//monkey = new ObjParser(str);
-}
+	
+	Dp = new ObjParser("img/obj/displayrack_r.obj");
+	Cider = new ObjParser("img/obj/Cider.obj");
+	Coke = new ObjParser("img/obj/Cider.obj");
+	Present1 = new ObjParser("img/obj/Present.obj");
+	Present2 = new ObjParser("img/obj/Present.obj");
+	Present3 = new ObjParser("img/obj/Present.obj");
+	Joystickboard = new ObjParser("img/obj/joystickboard.obj");
+	Joystick = new ObjParser("img/obj/Joystick_real.obj");
+	Pushbutton = new ObjParser("img/obj/pushbutton.obj");
+	Stick = new ObjParser("img/obj/Cider.obj");
 
+
+	strcpy(dp, "img/obj/displayrack_r.bmp");
+	strcpy(cider, "img/obj/Cider.bmp");
+	strcpy(coke, "img/obj/Coke.bmp");
+	strcpy(present1, "img/obj/present1.bmp");
+	strcpy(present2, "img/obj/present2.bmp");
+	strcpy(present3, "img/obj/present3.bmp");
+	strcpy(joystickboard, "img/obj/joystickboard.bmp");
+	strcpy(joystick, "img/obj/joystick_real1.bmp");
+	strcpy(pushbutton, "img/obj/pushbutton1.bmp");
+	strcpy(stick, "img/obj/stick.bmp");
+}
+void dprack() {
+
+	glColor3f(1.f, 1.f, 1.f);
+
+	draw_obj_with_texture(Dp, dp);//(0,0,0)
+	glPushMatrix();
+	glPushMatrix();
+	glPushMatrix();
+	glPushMatrix();
+	glPushMatrix();
+	glTranslatef(0, -0.35, 0);
+	glScalef(0.6, 0.6, 0.6);
+	glRotatef(90, 1, 0, 0);
+	draw_obj_with_texture(Present1, present1);
+
+	glPopMatrix();
+
+	glTranslatef(0, -2.4, 0);
+	glScalef(0.5, 0.5, 0.5);
+	draw_obj_with_texture(Cider, cider);
+
+	glPopMatrix();
+
+	glTranslatef(0, -0.4, -2);
+	glScalef(0.5, 0.5, 0.5);
+	draw_obj_with_texture(Coke, coke);
+
+	glPopMatrix();
+
+	glTranslatef(0, -2.4, -2);
+	glScalef(0.6, 0.6, 0.6);
+	glRotatef(90, 1, 0, 0);
+	draw_obj_with_texture(Present2, present2);
+
+}
+void joystick_op()
+{
+	glScalef(2, 2, 2);
+	draw_obj_with_texture(Joystickboard, joystickboard);
+	draw_axis();
+	glPushMatrix();
+
+	if (joy[0] == 1)//좌
+	{
+		glRotatef(30, 0, 0, 1);
+		glTranslatef(0, -0.5, 0);
+		joy[0] = 0;
+
+	}
+	else if (joy[1] == 1)//우
+	{
+		glTranslatef(0.2, 0.9, 0.5);
+		glRotatef(50, 0, 1, -0.7);
+		glTranslatef(0, -0.5, 0);
+		joy[1] = 0;
+	}
+	else if (joy[2] == 1)//위
+	{
+		glRotatef(-30, 1, 0, 0);
+		joy[2] = 0;
+	}
+	else if (joy[3] == 1)//아래
+	{
+		glRotatef(30, 1, 0, 0);
+		joy[3] = 0;
+	}
+	glTranslatef(1.03, 0, 0);
+	glTranslatef(0, 1, 0);
+	glScalef(0.4, 0.4, 0.4);
+	draw_obj_with_texture(Joystick, joystick);
+
+	glPopMatrix();
+	if (joy[4] == 1)
+	{
+		glTranslatef(0, -0.1, 0);
+		joy[4] = 0;
+	}
+	draw_obj_with_texture(Pushbutton, pushbutton);
+
+}
 
 
