@@ -5,9 +5,9 @@
 #include "bmpfuncs.h"
 #include "environment.h"
 #include <iostream>
-
+#include "setting_header.h"
 using namespace std;
-
+float g_pPosition[6] = { -1.0f,-4.0f,-0.5f,-3.0f,0.0f,-2.0f };
 environment env;
 
 #define M_PI 3.1415926535897
@@ -22,47 +22,19 @@ volatile float fps;
 
 /* texture mapping set variable */
 int game_step[3][3] = { 0 };
-GLuint textureMonkey;
 int game_mode = 0;//game:1 idle:0
 int coin_input = 0; //0:coin 안들어감 1:coin들어감
 float go[3] = { 0 };//x,y,z 좌표 이동하는 정도
 int joy[5] = { 0 };//joystick의 상태 좌우상하 push
 int stickop[5] = { 0 };//joystick에 따라 stick의 움직임
 bool antialiase_on = true;
-double radius = 10;
-double theta = 45, phi = 45;
+double radius = 16;
+double theta = 60, phi = 55;
 double cam[3];
 double center[3] = { 0, 0, 0 };
 double up[3] = { 0, 1, 0 };
 ///////////////////////////////
-char dp[50];
-char cider[50];
-char coke[50];
-char present1[50];
-char present2[50];
-char present3[50];
-char joystickboard[50];
-char joystick[50];
-char pushbutton[50];
-char stick[50];
-char coin[50];
-///////////////////////////
- //object var
-ObjParser* Dp;
-ObjParser* Cider;
-ObjParser* Coke;
-ObjParser* Present1;
-ObjParser* Present2;
-ObjParser* Present3;
-ObjParser* Joystickboard;
-ObjParser* Joystick;
-ObjParser* Joystick_ball;
-ObjParser* Pushbutton;
-ObjParser* Stick;
-ObjParser* Machine;
-ObjParser* Timer;
-ObjParser* Coin;
-ObjParser* Coinmachine;
+
 
 // user-defined function
 void init(void);
@@ -82,12 +54,132 @@ void dprack();
 void joystick_op();
 void pushstickop();
 void draw_obj(ObjParser* objParser);
-void draw_obj_with_texture(ObjParser* objParser, char buf[50]);
+void draw_obj_with_texture(ObjParser* objParser,int i);
 void idle();
+void MyTimer(int value);
 //...
+
+int g_nX, g_nY;
+int g_nSelect = 0;
+
+int g_nGLWidth = 500, g_nGLHeight = 500;
+
+void DrawSphere() {
+	glLoadName(1);
+	glPushMatrix();
+	glTranslatef(g_pPosition[0], g_pPosition[1], -10.0f);
+	glColor3f(1, 0, 0);
+	glutSolidSphere(0.2f, 30, 30);
+	//glutSolidCube(25);
+	glPopMatrix();
+
+	glLoadName(2);
+	glPushMatrix();
+	glTranslatef(g_pPosition[2], g_pPosition[3], -8.0f);
+	glColor3f(0, 1, 0);
+	glutSolidSphere(0.2f, 30, 30);
+	glPopMatrix();
+
+	glLoadName(3);
+	glPushMatrix();
+	glTranslatef(g_pPosition[4], g_pPosition[5], -9.0f);
+	glColor3f(0, 0, 1);
+	glutSolidSphere(0.2f, 30, 30);
+	//gluPartialDisk(myobject, 0.0, 25.0, 60, 4, 0.0, 270.0);
+	glPopMatrix();
+}
+void Picking(int x, int y)
+{
+	GLuint selectBuf[100];
+	for (int i = 0; i < 100; i++)
+		selectBuf[i] = 0;
+	glSelectBuffer(100, selectBuf);
+	//buffer에 GLuint 형의 배열에 picking한 개체에 대한 정보 저장
+	glRenderMode(GL_SELECT);
+	//GL_SELECT를 사용하여 선택 모드 설정
+	glMatrixMode(GL_PROJECTION);
+	//선택의 처리는 시점 좌표계에서 실시하므로 투시 변환 행렬 설정
+	glInitNames();
+	//개체의 이름 (정수)를 등록해두면 이름 스택을 초기화
+	//반드시 glRenderMode(GL_SELECT)를 호출 후 실행해야한다.
+	glPushName(-1);
+	//glPushName에 들어가는 parameter는 개체의 이름을 나타낸다.
+	//glInitName() 직 후 호출하면 이름 스택의 선두에 임시로 -1을 넣어둔다.
+	glPushMatrix();//투시 변환 행렬(glMatrix(GL_PROJECTION)를 matrix stack에 저장
+	glLoadIdentity();//투시 변환 행렬 초기화
+
+	GLint viewport[4];
+	glGetIntegerv(GL_VIEWPORT, viewport);
+	gluPickMatrix(x, y, 0.1, 0.1, viewport);
+	//표시 영역이 마우스 포인터 주위(viewport)만 사용하도록 변환 행렬 설정
+	//마우스 클릭 시 x,y가 선택영역의 중심 좌표가 된다. 그 뒤 인자는 dx, dy로
+	//작아질 수록 세밀하게 선택가능하다.
+	//glMatrixMode(GL_PROJECTION);
+	//glPushMatrix();
+	//glLoadIdentity();
+	//fourth step
+	glOrtho(-g_nGLWidth / 2.0f, g_nGLWidth / 2.0f, -g_nGLHeight / 2.0f, g_nGLHeight / 2.0f, -100, 100);
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+
+	glPopMatrix();
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+	glFlush();
+
+	GLint hits = glRenderMode(GL_RENDER);
+	//sixth step
+	if (hits <= 0)  return;
+
+	int stack = selectBuf[0];
+	unsigned int zMax = selectBuf[2];
+
+	unsigned int zMin = selectBuf[1];
+	g_nSelect = selectBuf[3];
+
+	int index = 3 + stack;
+	int i;
+	for (i = 1; i < hits; i++)
+	{
+		stack = selectBuf[index];
+		if (zMax < selectBuf[index + 2]) {
+			zMax = selectBuf[index + 2];
+			g_nSelect = selectBuf[index + 3];
+		}
+		index += 3 + stack;
+	}
+	/*for (i = 1; i < hits; i++)
+	{
+		stack = selectBuf[index];
+		if (zMin > selectBuf[index + 1]) {
+			zMin = selectBuf[index + 1];
+			g_nSelect = selectBuf[index + 3];
+		}
+		index += 3 + stack;
+	}*/
+	printf("hit is %d\n", hits);
+	for (int i = 0; i < 100; i++)
+	{
+		if (selectBuf[i] == 0)
+			break;
+		if (i % 4 == 0)
+			printf("stack : %u\n", selectBuf[i]);
+		else if (i % 4 == 1)
+			printf("zmin : %u\n", selectBuf[i]);
+		else if (i % 4 == 2)
+			printf("zmax : %u\n", selectBuf[i]);
+		else if (i % 4 == 3)
+			printf("g_nSelect : %u\n", selectBuf[i]);
+	}
+
+}
+
+
+int ccco = 0;
 void MyTimer(int value)
 {
-	coin_input++;
+	if(ccco==1)
+		coin_input++;
 	glutPostRedisplay();
 	glutTimerFunc(100000 / 60, MyTimer, 1); // 타이머는 한번만 불리므로 타이머 함수 안에서 다시 불러준다.
 }
@@ -135,6 +227,7 @@ void draw_text() {
 		break;
 	case 7:
 		coin_input = 0;
+		ccco = 0;
 		break;
 	default:
 		str = (char*)"READY";
@@ -143,6 +236,7 @@ void draw_text() {
 	
 
 	draw_string(GLUT_BITMAP_TIMES_ROMAN_24, str, -0.2, 0.87, 1, 1, 0);
+	glColor3f(1, 1, 1);
 }
 
 
@@ -185,82 +279,6 @@ int main(int argc, char** argv)
 	return EXIT_SUCCESS;
 }
 
-void light_default() {
-	glClearColor(1.f, 1.f, 1.f, 1.0f);
-
-	/* Light0 조명 관련 설정 */
-	GLfloat ambientLight[] = { 0.3f, 0.3f, 0.3f, 1.0f };
-	GLfloat diffuseLight[] = { 0.9f, 0.9f, 0.9f, 1.0f };
-	GLfloat specularLight[] = { 0.5f, 0.5f, 0.9f, 1.0f };
-	GLfloat light_position[] = { 0.0, 0.0, 0.0, 1.0 };
-
-	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
-	glLightfv(GL_LIGHT0, GL_SPECULAR, specularLight);
-
-	/********* light point position setting **********/
-	glLightfv(GL_LIGHT0, GL_POSITION, light_position);
-
-	/* Light1 조명 관련 설정 */
-	GLfloat ambientLight1[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	GLfloat diffuseLight1[] = { 0.5f, 0.5f, 0.5f, 1.0f };
-	GLfloat specularLight1[] = { 0.9f, 0.9f, 0.9f, 1.0f };
-	GLfloat light_position1[] = { 5.0, 5.0, 5.0, 1.0 };
-
-	glLightfv(GL_LIGHT1, GL_AMBIENT, ambientLight1);
-	glLightfv(GL_LIGHT1, GL_DIFFUSE, diffuseLight1);
-	glLightfv(GL_LIGHT1, GL_SPECULAR, specularLight1);
-
-	/********* light point position setting **********/
-	glLightfv(GL_LIGHT1, GL_POSITION, light_position1);
-
-	/************* spot position setting *************/
-	/*GLfloat spot_direction[] = { 0.0, 0.0, 0.0, 1.0 };
-	glLightf(GL_LIGHT0, GL_SPOT_CUTOFF, 45.0);
-	glLightfv(GL_LIGHT0, GL_SPOT_DIRECTION, spot_direction);
-	glLightf(GL_LIGHT0, GL_SPOT_EXPONENT, 2.0);*/
-
-	GLfloat specularMaterial[] = { 0.5f, 0.5f, 0.5f, 1.0f };
-	GLfloat diffuseMaterial[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	GLfloat ambientMaterial[] = { 0.2f, 0.2f, 0.2f, 1.0f };
-
-	/************* Material  setting *************/
-	glMaterialfv(GL_FRONT, GL_AMBIENT, ambientMaterial);
-	glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuseMaterial);
-	glMaterialfv(GL_FRONT, GL_SPECULAR, specularMaterial);
-	glMaterialf(GL_FRONT, GL_SHININESS, 30);
-
-
-	glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
-	glDisable(GL_COLOR_MATERIAL);
-
-	glEnable(GL_LIGHTING);
-	glEnable(GL_LIGHT0);
-	glEnable(GL_LIGHT1);
-
-	/* DEPTH TEST ENABLE */
-	glFrontFace(GL_CW);	// CW CCW바꿔보면서 front face 변경해보기!
-
-	
-}
-
-void setTextureMapping(char buf[100]) {
-	int imgWidth, imgHeight, channels;
-	uchar* img = readImageData(buf, &imgWidth, &imgHeight, &channels);
-
-	int texNum = 1;
-	glGenTextures(texNum, &textureMonkey);
-	glBindTexture(GL_TEXTURE_2D, textureMonkey);
-	glTexImage2D(GL_TEXTURE_2D, 0, 3, imgWidth, imgHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, img);
-
-
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);	//GL_REPEAT 둘중 하나 선택
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	//gluBuild2DMipmaps(GL_TEXTURE_2D, 3, imgWidth, imgHeight, GL_RGB, GL_UNSIGNED_BYTE, img);
-}
 
 void init()
 {
@@ -272,23 +290,14 @@ void init()
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
 	glEnable(GL_LIGHTING);
-	//glMatrixMode(GL_PROJECTION);
-	//glLoadIdentity();
-	//gluOrtho2D(0, 500, 500, 0);
 
 	// set blend
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 
-	
 
 	light_default();
-	
-	/* TEXTURE MAPPING SET */
-
-	glEnable(GL_TEXTURE_2D);
-
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE); //GL_REPLACE : polygon의 원래 색상은 무시하고 texture로 덮음
+	setting();
 	
 	env.envset();
 }
@@ -356,7 +365,7 @@ void keyboard(unsigned char key, int x, int y)
 		case 'b':
 		{
 			//if (theta < 170) 
-				theta += 5; //printf("theta %Lf\n", theta);
+				theta += 5;// printf("theta %Lf\n", theta);
 			break;
 		}
 		case 32://space bar//push
@@ -370,13 +379,9 @@ void keyboard(unsigned char key, int x, int y)
 			break;
 		}
 	}
-
+	printf("%Lf %Lf %Lf\n", cam[0], cam[1], cam[2]);
 	glutPostRedisplay();
 }
-
-
-
-
 
 /* Display callback function */
 void draw()
@@ -389,58 +394,90 @@ void draw()
 	//glEnable(GL_DEPTH_TEST);
 
 	
+		cam[0] = radius * sin(theta * M_PI / 180) * sin(phi * M_PI / 180);
+		cam[1] = radius * cos(theta * M_PI / 180);
+		cam[2] = radius * sin(theta * M_PI / 180) * cos(phi * M_PI / 180);
+		glDisable(GL_LIGHT1);
+		//gluLookAt(0, -4, 5, 0, -4, 0, 0, 1, 0);
 
-	cam[0] = radius * sin(theta * M_PI / 180) * sin(phi * M_PI / 180);
-	cam[1] = radius * cos(theta * M_PI / 180);
-	cam[2] = radius * sin(theta * M_PI / 180) * cos(phi * M_PI / 180);
-	glDisable(GL_LIGHT1);
-	gluLookAt(0, -4, 5, 0, -4, 0, 0, 1, 0);
-
-	if ((0 <= theta && theta < M_PI / 2) || (3 * M_PI / 2 < theta && theta <= 2 * M_PI)) {
-		gluLookAt(cam[0], cam[1], cam[2], 0, 0, 0, 0, -1, 0);
-	}
-	else {
-		gluLookAt(cam[0], cam[1], cam[2], 0, 0, 0, 0, 1, 0);
-	}
+		if ((0 <= theta && theta < M_PI / 2) || (3 * M_PI / 2 < theta && theta <= 2 * M_PI)) {
+			gluLookAt(cam[0], cam[1], cam[2], 0, 0, 0, 0, -1, 0);
+		}
+		else {
+			gluLookAt(cam[0], cam[1], cam[2], 0, 0, 0, 0, 1, 0);
+		}
+	
+		
+		
 	//gluLookAt(cam[0], cam[1], cam[2], center[0], center[1], center[2], up[0], up[1], up[2]);
 	if (game_mode == 1)
 	{
-		phi = 0; theta = 95; radius = 1;
-		gluLookAt(3.4, 0.3, 0, 0, 0, 0, 0, 1, 0);
+		glPopMatrix();
+		phi = 0; theta = 78; radius = 0.05;
+		gluLookAt(8.9, 0.8, 0, 0, 0, 0, 0, 1, 0);
 		glTranslatef(0, -4, 0);
-		
 		
 		if (coin_input != 0)
 		{
 
-			draw_obj_with_texture(Coin, coin);
+			ccco = 1;
+			draw_obj_with_texture(Coin, 9);
 			draw_text();
 		}
-	
-		
+		glPopMatrix();
 	}
-	//printf("%Lf %Lf %Lf %d %d %d\n", cam[0], cam[1], cam[2], center[0], center[1], center[2]);
-
+	glPopMatrix();
 	env.draw_skybox(60);
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_LIGHTING);
+
 	
 	
+	//glTranslatef(-5, 0, 0);
+	draw_obj_with_texture (Machine,8);
+	draw_obj(Coinmachine);
+	draw_obj(Timer);
 	
 	glDisable(GL_TEXTURE_2D);
 	glDisable(GL_LIGHTING);
-	glColor4f(0.5,0.5,0.2, 1);	 //색깔바꾸기
-	draw_obj (Machine);
+	glColor4f(1, 0, 0, 0.3);	 //색깔바꾸기
+	draw_obj(Glass1);
+	draw_obj(Glass2);
+	glDisable(GL_DEPTH_TEST);
+	glPushMatrix();
+	glTranslatef(3.5, 0, 1.7);
+	glRotatef(40, 0, 1, 0);
+	glTranslatef(0, 0, -1.7);
+	draw_obj(DpPlane);
 	
-	draw_obj(Coinmachine);
-	draw_obj(Timer);
+	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_LIGHTING);
+	draw_obj(Dphand);
+	draw_obj_with_texture(Dpsecret2, 13);
+	draw_obj_with_texture(Dpsecret, 14);
+	glPopMatrix();
+	///////////////////////
+	DrawSphere();
+	/////////////////////
 	
-	
+
+	draw_obj_with_texture(Presentbox,12);
 	//glPopMatrix();
 	
 	//dprack();
+	 //색깔바꾸기
+	draw_obj_with_texture(Boxpresent,10);
+	draw_obj_with_texture(Boxpresenthat,11);
+	glDisable(GL_TEXTURE_2D);
+	glDisable(GL_LIGHTING);
+	glDisable(GL_DEPTH_TEST);
+	glColor4f(1, 0, 0, 0.1);
+	draw_obj(Boxpresenttop);
+	glEnable(GL_TEXTURE_2D);
+	glEnable(GL_LIGHTING);
+	glEnable(GL_DEPTH_TEST);
+	
 
 
 	glPushMatrix();                                                    
@@ -456,45 +493,12 @@ void draw()
 
 	glEnable(GL_LIGHTING);
 	glColor4f(1, 1, 1, 1);	 //색깔바꾸기
-	glEnable(GL_LIGHTING);
 	
 	glFlush();
 	glutSwapBuffers();
 	
 }
 
-
-
-void set_obj()
-{
-	
-	Dp = new ObjParser("img/obj/dp.obj");
-	Cider = new ObjParser("img/obj/cider.obj");
-	Coke = new ObjParser("img/obj/cider.obj");
-	Present1 = new ObjParser("img/obj/present.obj");
-	Present2 = new ObjParser("img/obj/present.obj");
-	Joystickboard = new ObjParser("img/obj/joystickboard.obj");
-	Joystick = new ObjParser("img/obj/joystick.obj");
-	Joystick_ball = new ObjParser("img/obj/joystick_ball.obj");
-	Pushbutton = new ObjParser("img/obj/pushbutton.obj");
-	Stick = new ObjParser("img/obj/stick.obj");
-	Machine = new ObjParser("img/obj/machine.obj");
-	Coinmachine = new ObjParser("img/obj/coinmachine.obj");
-	Coin = new ObjParser("img/obj/coin.obj");
-	Timer = new ObjParser("img/obj/timer.obj");
-
-	//strcpy(dp, "img/obj/displayrack_r.bmp");
-	//strcpy(cider, "img/obj/Cider.bmp");
-	//strcpy(coke, "img/obj/Coke.bmp");
-	strcpy(present1, "img/obj/present11.bmp");
-	strcpy(present2, "img/obj/present2.bmp");
-	
-	//strcpy(joystickboard, "img/obj/joystickboard.bmp");
-	strcpy(joystick, "img/obj/joystick_ball.bmp");
-	//strcpy(pushbutton, "img/obj/pushbutton1.bmp");
-	//strcpy(stick, "img/obj/machine.bmp");
-	strcpy(coin, "img/obj/coin.bmp");
-}
 void dprack() {
 
 	glColor3f(1.f, 1.f, 1.f);
@@ -502,52 +506,45 @@ void dprack() {
 	//glDisable(GL_TEXTURE_2D);
 	//glDisable(GL_LIGHTING);
 	//glColor4f(1, 0, 0, 1);	 //색깔바꾸기
-	draw_obj(Dp);//(0,0,0)
+	draw_obj_with_texture(Dp,0);//(0,0,0)
 	//glEnable(GL_TEXTURE_2D);
-	//glEnable(GL_LIGHTING);
+	//glEnable(GL_LIGHTING);s
 	
-	glPushMatrix();
+	//glPushMatrix();
 	
 	
-	draw_obj_with_texture(Present1, present1);
+	draw_obj_with_texture(Present1,3);
 	//draw_obj(Present1);
 	//glPopMatrix();
 
-	//draw_obj_with_texture(Cider, cider);
-	draw_obj(Cider);
+	draw_obj_with_texture(Cider,1);
+	//draw_obj(Cider);
 	//glPopMatrix();
 
 	glTranslatef(0, -2.3, 0);
-	//draw_obj_with_texture(Coke, coke);
-	draw_obj(Coke);
+	draw_obj_with_texture(Coke,2);
+	//draw_obj_with_texture(Coke);
 	//glPopMatrix();
 
-	draw_obj_with_texture(Present2, present2);
+	draw_obj_with_texture(Present2,4);
 	//draw_obj(Present2);
 
 }
 void joystick_op()
 {
 	//glDisable(GL_TEXTURE_2D);
-	glDisable(GL_TEXTURE_2D);
-	glDisable(GL_LIGHTING);
-	glColor4f(0,1,0,1);	 //색깔바꾸기
-	draw_obj(Joystickboard);
-	glEnable(GL_TEXTURE_2D);
-	glEnable(GL_LIGHTING);
-	//draw_obj_with_texture(Joystickboard,joystick);
+	
+	draw_obj_with_texture(Joystickboard,5);
 	
 	glPushMatrix();
 	//glEnable(GL_TEXTURE_2D);
 	if (joy[0] == 1)//좌
 	{
-		
 		glTranslatef(0, 0, 0.5);
 		glTranslatef(0, 0.4, 0);
 		glRotatef(30, 1, 0, 0);
 		stickop[0] = 1;
 		joy[0] = 0;
-
 	}
 	else if (joy[1] == 1)//우
 	{
@@ -580,7 +577,7 @@ void joystick_op()
 	draw_obj(Joystick);
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_LIGHTING);
-	draw_obj_with_texture(Joystick_ball,joystick);
+	draw_obj_with_texture(Joystick_ball,6);
 	glPopMatrix();
 	glPushMatrix();
 	if (joy[4] == 1)
@@ -592,9 +589,9 @@ void joystick_op()
 	glDisable(GL_TEXTURE_2D);
 	glDisable(GL_LIGHTING);
 	glColor4f(1, 0, 0, 1);	 //색깔바꾸기
-	draw_obj(Pushbutton);
+	draw_obj_with_texture(Pushbutton,7);
 	glEnable(GL_TEXTURE_2D);
-
+	glEnable(GL_LIGHTING);
 	
 	
 
@@ -603,8 +600,9 @@ void joystick_op()
 }
 
 void pushstickop() {
-	
-	glTranslatef(go[0], go[1], go[2]);
+	glTranslatef(0, 0, go[2]);
+	draw_obj_with_texture(Stickbarh, 15);
+	glTranslatef(0, go[1], 0);
 	if (stickop[0] == 1)//좌
 	{
 		if (go[2] < 1)
@@ -643,23 +641,32 @@ void pushstickop() {
 		if (go[0] > -1)
 		{
 			go[0] -= 1;
+			coin_input=6;
 		}
 		stickop[4] = 0;
 	}
 	
 	//glRotatef(90, 0, 0, 1);
 
+	draw_obj(Stickbar);
+	glTranslatef(go[0], 0, 0);
 	draw_obj(Stick);
+
 	glutPostRedisplay();
 }
 
 void mouse(int button, int state, int x, int y)
 {
-	if (state) {
-		// printf("button(%d), state(%d), x(%d), y(%d)\n", button, state, x, y);
+	y = g_nGLHeight - y;
+	if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
+	{
+		Picking(x, y);
+		g_nX = x;
+		g_nY = y;
 	}
-	else {
-		// printf("button(%d), state(%d), x(%d), y(%d)\n", button, state, x, y);
+	else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP)
+	{
+		g_nSelect = 0;
 	}
 	glutPostRedisplay();
 }
@@ -667,7 +674,9 @@ void mouse(int button, int state, int x, int y)
 void mouseWheel(int button, int dir, int x, int y)
 {
 	if (dir > 0) {
-		// printf("button(%d), dir(%d), x(%d), y(%d)\n", button, dir, x, y);
+		//printf("button(%d), dir(%d), x(%d), y(%d)\n", button, dir, x, y);
+		//printf("radius %f \n", radius);
+
 		if (radius > 1) radius -= 0.5;
 	}
 	else {
@@ -685,8 +694,15 @@ void passiveMotion(int x, int y)
 
 void motion(int x, int y)
 {
-	//printf("Mouse movement x, y = (%d, %d)\n", x, y);
-	glutPostRedisplay();
+	y = g_nGLHeight - y;
+	if (g_nSelect > 0) {
+		g_pPosition[(g_nSelect - 1) * 2 + 0] += x - g_nX;
+		g_pPosition[(g_nSelect - 1) * 2 + 1] += y - g_nY;
+		g_nX = x;
+		g_nY = y;
+		glutPostRedisplay();
+	}
+
 }
 
 void main_menu(int option)
@@ -694,6 +710,9 @@ void main_menu(int option)
 	if (option == 99) exit(0);
 	else if (option == 10) {
 		game_mode = 1;
+	}
+	else if (option == 11) {
+		game_mode = 0;
 	}
 	else if (option == 1) {
 		game_step[0][0] = 1;
@@ -711,6 +730,7 @@ void add_menu()
 	int mainmenu1 = glutCreateMenu(&main_menu);
 
 	glutAddMenuEntry("game_mode", 10);
+	glutAddMenuEntry("normal_mode", 11);
 	glutAddMenuEntry("Quit", 99);
 	glutAddMenuEntry("first game", 1);
 	glutAttachMenu(GLUT_RIGHT_BUTTON);
@@ -770,13 +790,13 @@ void draw_obj(ObjParser* objParser)
 	glEnd();
 }
 
-void draw_obj_with_texture(ObjParser* objParser, char buf[50])
+void draw_obj_with_texture(ObjParser* objParser,int i)
 {
 
-	setTextureMapping(buf);
+	
 	glDisable(GL_BLEND);
 	// glEnable(GL_TEXTURE_2D);	// texture 색 보존을 위한 enable
-	glBindTexture(GL_TEXTURE_2D, textureMonkey);
+	glBindTexture(GL_TEXTURE_2D, textureMonkey[i]);
 	glBegin(GL_TRIANGLES);
 	for (unsigned int n = 0; n < objParser->getFaceSize(); n += 3) {
 		glTexCoord2f(objParser->textures[objParser->textureIdx[n] - 1].x,
