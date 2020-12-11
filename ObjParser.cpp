@@ -7,6 +7,10 @@
 #include <iostream>
 #include "setting_header.h"
 using namespace std;
+
+struct ab {
+	float a, b;
+};
 float g_pPosition[6] = { -1.0f,-4.0f,-0.5f,-3.0f,0.0f,-2.0f };
 environment env;
 
@@ -19,6 +23,11 @@ using std::sqrt;
 // global variable for counting fps
 //volatile int frame = 0, time, timebase = 0;
 volatile float fps;
+
+int colordp[3][2] = { 0 };
+int c_dp = 0;
+
+ab lock[4];
 
 /* texture mapping set variable */
 int game_step[3][3] = { 0 };
@@ -33,6 +42,8 @@ double theta = 60, phi = 55;
 double cam[3];
 double center[3] = { 0, 0, 0 };
 double up[3] = { 0, 1, 0 };
+bool pushed[6][5] = { 0 };
+float push_obj[6][5] = { 0 };
 ///////////////////////////////
 
 
@@ -68,23 +79,23 @@ void DrawSphere() {
 	glLoadName(1);
 	glPushMatrix();
 	glTranslatef(g_pPosition[0], g_pPosition[1], -10.0f);
-	glColor3f(1, 0, 0);
-	glutSolidSphere(0.2f, 30, 30);
+	glColor4f(1, 0, 0,1);
+	glutSolidSphere(1.0f, 30, 30);
 	//glutSolidCube(25);
 	glPopMatrix();
 
 	glLoadName(2);
 	glPushMatrix();
 	glTranslatef(g_pPosition[2], g_pPosition[3], -8.0f);
-	glColor3f(0, 1, 0);
-	glutSolidSphere(0.2f, 30, 30);
+	glColor4f(0, 1, 0,1);
+	glutSolidSphere(1.0f, 30, 30);
 	glPopMatrix();
 
 	glLoadName(3);
 	glPushMatrix();
 	glTranslatef(g_pPosition[4], g_pPosition[5], -9.0f);
-	glColor3f(0, 0, 1);
-	glutSolidSphere(0.2f, 30, 30);
+	glColor4f(0, 0, 1,1);
+	glutSolidSphere(1.0f, 30, 30);
 	//gluPartialDisk(myobject, 0.0, 25.0, 60, 4, 0.0, 270.0);
 	glPopMatrix();
 }
@@ -180,6 +191,10 @@ void MyTimer(int value)
 {
 	if(ccco==1)
 		coin_input++;
+	if (c_dp == 0)
+		c_dp = 1;
+	else if (c_dp == 1)
+		c_dp = 0;
 	glutPostRedisplay();
 	glutTimerFunc(100000 / 60, MyTimer, 1); // 타이머는 한번만 불리므로 타이머 함수 안에서 다시 불러준다.
 }
@@ -195,7 +210,7 @@ void draw_string(void* font, const char* str, float x_position, float y_position
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 	glLoadIdentity();
-	glColor3f(red, green, blue);
+	glColor4f(red, green, blue,1);
 	glRasterPos3f(x_position, y_position, 0);
 	for (unsigned int i = 0; i < strlen(str); i++)
 		glutBitmapCharacter(font, str[i]);
@@ -226,7 +241,7 @@ void draw_text() {
 		str = (char*)"end";
 		break;
 	case 7:
-		coin_input = 0;
+		coin_input = 1;
 		ccco = 0;
 		break;
 	default:
@@ -236,7 +251,7 @@ void draw_text() {
 	
 
 	draw_string(GLUT_BITMAP_TIMES_ROMAN_24, str, -0.2, 0.87, 1, 1, 0);
-	glColor3f(1, 1, 1);
+	glColor4f(1, 1, 1,1);
 }
 
 
@@ -295,10 +310,23 @@ void init()
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 
+	colordp[0][0] = 1; colordp[1][0] = 0; colordp[2][0] = 0;
+	colordp[0][1] = 0; colordp[1][1] = 1; colordp[2][1] = 0;
 
 	light_default();
 	setting();
-	
+	for (int i = 0; i < 4; i++)
+	{
+		lock[i].a = 0, lock[i].b = 0;
+	}
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 5; j++)
+		{
+			pushed[i][j] = 0;
+			push_obj[i][j] = 0;
+		}
+	}
 	env.envset();
 }
 
@@ -378,8 +406,21 @@ void keyboard(unsigned char key, int x, int y)
 			coin_input = 1;
 			break;
 		}
+		case 'l':
+		{
+			if (lock[0].a == 0 && lock[1].a==0)
+				lock[0].a = 1;
+			break;
+		
+		}
+		case 'L':
+		{
+			if (lock[0].a == 1 && lock[1].a == 0)
+				lock[1].a = 1;
+			break;
+		}
 	}
-	printf("%Lf %Lf %Lf\n", cam[0], cam[1], cam[2]);
+	//printf("%Lf %Lf %Lf\n", cam[0], cam[1], cam[2]);
 	glutPostRedisplay();
 }
 
@@ -391,9 +432,9 @@ void draw()
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	//glEnable(GL_DEPTH_TEST);
-
-	
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		cam[0] = radius * sin(theta * M_PI / 180) * sin(phi * M_PI / 180);
 		cam[1] = radius * cos(theta * M_PI / 180);
 		cam[2] = radius * sin(theta * M_PI / 180) * cos(phi * M_PI / 180);
@@ -406,7 +447,7 @@ void draw()
 		else {
 			gluLookAt(cam[0], cam[1], cam[2], 0, 0, 0, 0, 1, 0);
 		}
-	
+		
 		
 		
 	//gluLookAt(cam[0], cam[1], cam[2], center[0], center[1], center[2], up[0], up[1], up[2]);
@@ -414,6 +455,7 @@ void draw()
 	{
 		glPopMatrix();
 		phi = 0; theta = 78; radius = 0.05;
+	
 		gluLookAt(8.9, 0.8, 0, 0, 0, 0, 0, 1, 0);
 		glTranslatef(0, -4, 0);
 		
@@ -427,7 +469,7 @@ void draw()
 		glPopMatrix();
 	}
 	glPopMatrix();
-	env.draw_skybox(60);
+	env.draw_skybox(60,1);
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_LIGHTING);
 
@@ -440,14 +482,30 @@ void draw()
 	
 	glDisable(GL_TEXTURE_2D);
 	glDisable(GL_LIGHTING);
+	glDisable(GL_DEPTH_TEST);
 	glColor4f(1, 0, 0, 0.3);	 //색깔바꾸기
 	draw_obj(Glass1);
 	draw_obj(Glass2);
-	glDisable(GL_DEPTH_TEST);
+	
 	glPushMatrix();
-	glTranslatef(3.5, 0, 1.7);
-	glRotatef(40, 0, 1, 0);
-	glTranslatef(0, 0, -1.7);
+	if (lock[0].a == 1)
+	{
+		if (lock[1].a == 1)
+		{
+			
+			glTranslatef(1.5, 0, -3.4);
+			glRotatef(lock[0].b, 0, 1, 0);
+			glTranslatef(-1.5, 0, 3.4);
+			if (lock[0].b <= 0) { lock[0].a = 0; lock[1].a = 0; }
+		}
+		else {
+			glTranslatef(1.5, 0, -3.4);
+			glRotatef(lock[0].b, 0, 1, 0);
+			glTranslatef(-1.5, 0, 3.4);
+		}
+	}
+	
+	
 	draw_obj(DpPlane);
 	
 	glEnable(GL_DEPTH_TEST);
@@ -456,28 +514,11 @@ void draw()
 	draw_obj(Dphand);
 	draw_obj_with_texture(Dpsecret2, 13);
 	draw_obj_with_texture(Dpsecret, 14);
-	glPopMatrix();
 	///////////////////////
 	DrawSphere();
 	/////////////////////
 	
 
-	draw_obj_with_texture(Presentbox,12);
-	//glPopMatrix();
-	
-	//dprack();
-	 //색깔바꾸기
-	draw_obj_with_texture(Boxpresent,10);
-	draw_obj_with_texture(Boxpresenthat,11);
-	glDisable(GL_TEXTURE_2D);
-	glDisable(GL_LIGHTING);
-	glDisable(GL_DEPTH_TEST);
-	glColor4f(1, 0, 0, 0.1);
-	draw_obj(Boxpresenttop);
-	glEnable(GL_TEXTURE_2D);
-	glEnable(GL_LIGHTING);
-	glEnable(GL_DEPTH_TEST);
-	
 
 
 	glPushMatrix();                                                    
@@ -489,7 +530,32 @@ void draw()
 	
 	joystick_op();
 	glPopMatrix();
+	glPushMatrix();
 	pushstickop();
+	 
+	glPopMatrix();
+	draw_obj_with_texture(Presentbox, 12);
+	//glPopMatrix();
+
+	//dprack();
+	 //색깔바꾸기
+	draw_obj_with_texture(Boxpresent, 10);
+	
+			glTranslatef(0, 0, -8.0);
+			glRotatef(180 + lock[0].b, 0, 0, 1);
+			glTranslatef(0, 0, 8.0);
+			if (lock[0].a == 0 && lock[1].a == 0)
+				glTranslatef(0, 3.5, 0);
+	
+	glDisable(GL_TEXTURE_2D);
+	glDisable(GL_LIGHTING);
+	glDisable(GL_DEPTH_TEST);
+	glColor4f(1, 0, 0, 0.1);
+	draw_obj(Boxpresenttop);
+	glEnable(GL_TEXTURE_2D);
+	glEnable(GL_LIGHTING);
+	glEnable(GL_DEPTH_TEST);
+	draw_obj_with_texture(Boxpresenthat, 11);
 
 	glEnable(GL_LIGHTING);
 	glColor4f(1, 1, 1, 1);	 //색깔바꾸기
@@ -501,33 +567,126 @@ void draw()
 
 void dprack() {
 
-	glColor3f(1.f, 1.f, 1.f);
+	glColor4f(1.f, 1.f, 1.f,1.0f);
 	draw_axis();
-	//glDisable(GL_TEXTURE_2D);
-	//glDisable(GL_LIGHTING);
-	//glColor4f(1, 0, 0, 1);	 //색깔바꾸기
+		 //색깔바꾸기
 	draw_obj_with_texture(Dp,0);//(0,0,0)
-	//glEnable(GL_TEXTURE_2D);
-	//glEnable(GL_LIGHTING);s
 	
-	//glPushMatrix();
+	glDisable(GL_TEXTURE_2D);
+	glDisable(GL_LIGHTING);
+	glColor4f(colordp[0][c_dp], colordp[1][c_dp], colordp[2][c_dp], 1);
+	glPushMatrix();
+	draw_obj(hlight);
+	glTranslatef(0, 0, -0.5);
+	glColor4f(colordp[0][c_dp], colordp[1][c_dp], colordp[2][c_dp], 1);
+	draw_obj(hlight);
+	glColor4f(colordp[0][c_dp], colordp[1][c_dp], colordp[2][c_dp], 1);
+	glTranslatef(0, 0, -0.5);
+	draw_obj(hlight);
+	glColor4f(colordp[0][c_dp], colordp[1][c_dp], colordp[2][c_dp], 1);
+	glTranslatef(0, 0, -0.5);
+	draw_obj(hlight);
+	glColor4f(colordp[0][c_dp], colordp[1][c_dp], colordp[2][c_dp], 1);
+	glTranslatef(0, 0, -0.5);
+	draw_obj(hlight);
+	glColor4f(colordp[0][c_dp], colordp[1][c_dp], colordp[2][c_dp], 1);
+	glTranslatef(0, 0, -0.5);
+	draw_obj(hlight);
+	glColor4f(colordp[0][c_dp], colordp[1][c_dp], colordp[2][c_dp], 1);
+	glTranslatef(0, 0, -0.5);
+	draw_obj(hlight);
+	glColor4f(colordp[0][c_dp], colordp[1][c_dp], colordp[2][c_dp], 1);
+	glTranslatef(0, 0, -0.5);
+	draw_obj(hlight);
+	glColor4f(colordp[0][c_dp], colordp[1][c_dp], colordp[2][c_dp], 1);
+	glTranslatef(0, 0, -0.5);
+	draw_obj(hlight);
+	glColor4f(colordp[0][c_dp], colordp[1][c_dp], colordp[2][c_dp], 1);
+	glTranslatef(0, 0, -0.5);
+	draw_obj(hlight);
+	glColor4f(colordp[0][c_dp], colordp[1][c_dp], colordp[2][c_dp], 1);
+	glTranslatef(0, 0, -0.5);
+	draw_obj(hlight);
+	glColor4f(colordp[0][c_dp], colordp[1][c_dp], colordp[2][c_dp], 1);
+	glTranslatef(0, 0, -0.5);
+	draw_obj(hlight);
+	glColor4f(colordp[0][c_dp], colordp[1][c_dp], colordp[2][c_dp], 1);
+	glTranslatef(0, 0, -0.5);
+	draw_obj(hlight);
+	glColor4f(colordp[0][c_dp], colordp[1][c_dp], colordp[2][c_dp], 1);
+	glTranslatef(0, 0, -0.4);
+	draw_obj(hlight);
+	glPopMatrix();
+	glEnable(GL_TEXTURE_2D);
+	glEnable(GL_LIGHTING);
 	
 	
-	draw_obj_with_texture(Present1,3);
-	//draw_obj(Present1);
-	//glPopMatrix();
+	
+	
+	draw_obj_with_texture(Coke,1);
+	draw_obj_with_texture(Present1, 17);
+	draw_obj_with_texture(Present2, 16);
+	draw_obj_with_texture(Present3, 3);
+	/*glTranslatef(-0.5, 0, 2.3);
+	glRotatef(60, 0, 1, 0 );
+	glTranslatef(0.5, 0, -2.3);*/
+	if (pushed[4][0] == 1)
+	{
+		glTranslatef(-0.5, 0, 2.3);
+		glRotatef(push_obj[4][0], 0, 1, 0);
+		glTranslatef(0.5, 0, -2.3);
+	}
+	if (pushed[4][1] == 1)
+	{
+		glTranslatef(push_obj[4][1], 0, 0);
+	}
+	if (pushed[4][2] == 1)
+	{
+		glTranslatef(-0.5, 0, 2.3);
+		glRotatef(push_obj[4][2], 0, 1, 0);
+		glTranslatef(0.5, 0, -2.3);
+	}
+	if (pushed[4][4] == 1)
+	{
+		glTranslatef(-push_obj[4][1], -5.8, 0);
+	}
+	if (pushed[4][3] == 1)
+	{
+		glTranslatef(0.7, 0.5, 0);
+		glTranslatef(-0.5, 0, 2.3);
+		glRotatef(push_obj[4][3], 0, 0, 1);
+		glTranslatef(0.5, 0, -2.3);
+	}
 
-	draw_obj_with_texture(Cider,1);
-	//draw_obj(Cider);
-	//glPopMatrix();
-
-	glTranslatef(0, -2.3, 0);
-	draw_obj_with_texture(Coke,2);
-	//draw_obj_with_texture(Coke);
-	//glPopMatrix();
-
-	draw_obj_with_texture(Present2,4);
-	//draw_obj(Present2);
+	draw_obj_with_texture(Present4, 4);
+	glPopMatrix();
+	//////////////////////////////////////////////////
+	if (pushed[5][0] == 1)
+	{
+		glTranslatef(-0.4, 0, 0);
+		glRotatef(push_obj[5][0], 0, 1, 0);
+	}
+	if (pushed[5][1] == 1)
+	{
+		glTranslatef(push_obj[5][1], 0, 0);
+	}
+	if (pushed[5][2] == 1)
+	{
+		glTranslatef(-0.4, 0, 0);
+		glRotatef(push_obj[5][2], 0, 1, 0);
+	}
+	if (pushed[5][4] == 1)
+	{
+		glTranslatef(-push_obj[5][1], -5.8, 0);
+	}
+	if (pushed[5][3] == 1)
+	{
+		glTranslatef(0.6, 1, 0);
+		glRotatef(push_obj[5][3], 0, 0, 1);
+		
+	}
+	draw_obj_with_texture(Cider, 2);
+	glPopMatrix();
 
 }
 void joystick_op()
@@ -600,14 +759,16 @@ void joystick_op()
 }
 
 void pushstickop() {
-	glTranslatef(0, 0, go[2]);
+	//if(coin_input!=0)
+		glTranslatef(0, 0, go[2]);
 	draw_obj_with_texture(Stickbarh, 15);
-	glTranslatef(0, go[1], 0);
+	//if (coin_input != 0)
+		glTranslatef(0, go[1], 0);
 	if (stickop[0] == 1)//좌
 	{
-		if (go[2] < 1)
+		if (go[2] < 0.7)
 		{
-			go[2] += 0.3;
+			go[2] += 0.1;
 		}
 		stickop[0] = 0;
 
@@ -616,7 +777,7 @@ void pushstickop() {
 	{
 		if (go[2] > -5)
 		{
-			go[2] -= 0.3;
+			go[2] -= 0.1;
 		}
 		stickop[1] = 0;
 	}
@@ -624,7 +785,7 @@ void pushstickop() {
 	{
 		if (go[1] < 4)
 		{
-			go[1] += 0.3;
+			go[1] += 0.1;
 		}
 		stickop[2] = 0;
 	}
@@ -632,7 +793,7 @@ void pushstickop() {
 	{
 		if (go[1] > 0)
 		{
-			go[1] -= 0.3;
+			go[1] -= 0.1;
 		}
 		stickop[3] = 0;
 	}
@@ -640,7 +801,63 @@ void pushstickop() {
 	{
 		if (go[0] > -1)
 		{
-			go[0] -= 1;
+			//가장 왼쪽 아래
+			if (go[1] >= 0.0 && go[1] <= 0.8 && go[2] >= 0.2 && go[2] <= 0.6)
+			{
+				printf("pushed down\n");
+				pushed[4][1] = 1;
+			}
+			if (go[1] >= 0.0 && go[1] <= 1.2 && go[2] >= 0.5 && go[2] <= 0.6)
+			{
+				printf("pushed dleft\n");
+				pushed[4][0] = 1;
+			}
+			if (go[1] >= 0.0 && go[1] <= 1.2 && go[2] >= 0.0 && go[2] <= 0.2)
+			{
+				printf("pushed dright\n");
+				pushed[4][2] = 1;
+			}
+			if (go[1] >= 0.7 && go[1] <= 1.2 && go[2] >= 0.2 && go[2] <= 0.6)
+			{
+				printf("pushed dup\n");
+				pushed[4][3] = 1;
+			}
+			//가운데 아래
+			if (go[1] >= 0.0 && go[1] <= 0.6 && go[2] >= -2.2 && go[2] <= -1.8)
+			{
+				printf("pushed mdown\n");
+				pushed[5][1] = 1;
+			}
+			if (go[1] >= 0.0 && go[1] <= 0.9 && go[2] >= -2.3 && go[2] <= -2.1)
+			{
+				printf("pushed mdright\n");
+				pushed[5][2] = 1;
+			}
+			if (go[1] >= 0.0 && go[1] <= 0.9 && go[2] >= -1.8 && go[2] <= -1.5)
+			{
+				printf("pushed mleft\n");
+				
+				pushed[5][0] = 1;
+			}
+			if (go[1] >=  0.6&& go[1] <= 0.9 && go[2] >= -2.2 && go[2] <= -1.8)
+			{
+				printf("pushed mdup\n");
+				pushed[5][3] = 1;
+			}
+			//가장 왼쪽 위
+			if (go[1] >= 2.4 && go[1] <= 3.0 && go[2] >= 0.0 && go[2] <= 0.4)
+				printf("pushed up\n");
+			//가운데 위
+			if (go[1] >= 2.4 && go[1] <= 3.4 && go[2] >= -2.2 && go[2] <= -1.6)
+				printf("pushed mup\n");
+			//가장 오른쪽 아래
+			if (go[1] >= 0.0 && go[1] <= 0.8 && go[2] >= -4.4 && go[2] <= -3.6)
+				printf("pushed rdown\n");
+			//가장 오른쪽 위
+			if (go[1] >= 2.6 && go[1] <= 3.4 && go[2] >= -4.4 && go[2] <= -4.0)
+				printf("pushed rup\n");
+			printf("%f %f \n", go[0], go[2]);
+			go[0] = 0;
 			coin_input=6;
 		}
 		stickop[4] = 0;
@@ -649,7 +866,8 @@ void pushstickop() {
 	//glRotatef(90, 0, 0, 1);
 
 	draw_obj(Stickbar);
-	glTranslatef(go[0], 0, 0);
+	//if (coin_input != 0)
+		glTranslatef(go[0], 0, 0);
 	draw_obj(Stick);
 
 	glutPostRedisplay();
@@ -748,8 +966,61 @@ void idle()
 		frame = 0;
 		//printf("fps : %.0f\n", fps);
 	}*/
+	if(lock[0].a==1 && lock[0].b<90 && lock[1].a==0)
+		lock[0].b+=0.1;
+	else if (lock[1].a == 1 && lock[0].b >=0 && lock[0].a==1)
+		lock[0].b -= 0.1;
+	if (pushed[4][1] == 1)
+	{ 
+		if (push_obj[4][1] > -1.5)
+			push_obj[4][1] -= 0.01;
+		else if (push_obj[4][1] <= -1.5)
+			pushed[4][4] = 1;
+	}
+	if (pushed[4][0] == 1)
+	{
+		if (push_obj[4][0] > -60)
+			push_obj[4][0] -= 1;
 	
-	
+	}
+	if (pushed[4][2] == 1)
+	{
+		if (push_obj[4][2] < 60)
+			push_obj[4][2] += 1;
+
+	}
+	if (pushed[4][3] == 1)
+	{
+		if (push_obj[4][3] < 60)
+			push_obj[4][3] += 1;
+
+	}
+	/////////////////////////////////////
+	if (pushed[5][1] == 1)
+	{
+		if (push_obj[5][1] > -1.5)
+			push_obj[5][1] -= 0.01;
+		else if (push_obj[5][1] <= -1.5)
+			pushed[5][4] = 1;
+	}
+	if (pushed[5][0] == 1)
+	{
+		if (push_obj[5][0] > -60)
+			push_obj[5][0] -= 1;
+
+	}
+	if (pushed[5][2] == 1)
+	{
+		if (push_obj[5][2] < 60)
+			push_obj[5][2] += 1;
+
+	}
+	if (pushed[5][3] == 1)
+	{
+		if (push_obj[5][3] < 60)
+			push_obj[5][3] += 1;
+
+	}
 }
 
 void resize(int width, int height)

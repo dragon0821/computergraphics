@@ -14,6 +14,7 @@ char coke[50];
 char present1[50];
 char present2[50];
 char present3[50];
+char present4[50];
 char joystickboard[50];
 char joystick[50];
 char pushbutton[50];
@@ -33,6 +34,7 @@ ObjParser* Coke;
 ObjParser* Present1;
 ObjParser* Present2;
 ObjParser* Present3;
+ObjParser* Present4;
 ObjParser* Joystickboard;
 ObjParser* Joystick;
 ObjParser* Joystick_ball;
@@ -56,15 +58,17 @@ ObjParser* Boxpresenthat;
 ObjParser* Boxpresenttop;
 ObjParser* Boxsecret;
 ObjParser* Boxsecret2;
-
+ObjParser* hlight;
 
 void set_obj()
 {
-	Dp = new ObjParser("img/obj/dp.obj");
-	Cider = new ObjParser("img/obj/cider.obj");
-	Coke = new ObjParser("img/obj/cider.obj");
-	Present1 = new ObjParser("img/obj/present.obj");
-	Present2 = new ObjParser("img/obj/present.obj");
+	Dp = new ObjParser("img/obj/dpdpdpdp.obj");
+	Cider = new ObjParser("img/obj/coke2.obj");
+	Coke = new ObjParser("img/obj/coke.obj");
+	Present1 = new ObjParser("img/obj/squar.obj");
+	Present2 = new ObjParser("img/obj/squar2.obj");
+	Present3 = new ObjParser("img/obj/cone.obj");
+	Present4 = new ObjParser("img/obj/cone2.obj");
 	Joystickboard = new ObjParser("img/obj/joystickboard.obj");
 	Joystick = new ObjParser("img/obj/joystick.obj");
 	Joystick_ball = new ObjParser("img/obj/joystick_ball.obj");
@@ -84,10 +88,13 @@ void set_obj()
 	Dpsecret2 = new ObjParser("img/obj/dpsecret2.obj");
 	Presentbox = new ObjParser("img/obj/present_box.obj");
 	Boxpresent = new ObjParser("img/obj/boxpresent2.obj");
+	Boxpresent = new ObjParser("img/obj/boxpresent2.obj");
+
 	Boxpresenthat = new ObjParser("img/obj/boxpresent.obj");
 	Boxpresenttop = new ObjParser("img/obj/boxpresent3.obj");
 	Boxsecret= new ObjParser("img/obj/boxsecret.obj");
 	Boxsecret = new ObjParser("img/obj/boxsecret2.obj");
+	hlight = new ObjParser("img/obj/light.obj");
 
 }
 void setting() {
@@ -100,8 +107,10 @@ void setting() {
 	strcpy(dp, "img/obj/displayrack_r.bmp");
 	strcpy(cider, "img/obj/Cider.bmp");
 	strcpy(coke, "img/obj/Coke.bmp");
-	strcpy(present1, "img/obj/present11.bmp");
-	strcpy(present2, "img/obj/present2.bmp");
+	strcpy(present1, "img/obj/cone.bmp");
+	strcpy(present2, "img/obj/cone2.bmp");
+	strcpy(present3, "img/obj/Cube.bmp");
+	strcpy(present4, "img/obj/Cube2.bmp");
 	strcpy(joystickboard, "img/obj/joystickboard.bmp");
 	strcpy(joystick, "img/obj/joystick_ball.bmp");
 	strcpy(pushbutton, "img/obj/pushbutton1.bmp");
@@ -315,6 +324,31 @@ void setting() {
 
 
 	glBindTexture(GL_TEXTURE_2D, textureMonkey[15]);
+	glTexImage2D(GL_TEXTURE_2D, 0, 3, imgWidth, imgHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, img);
+
+
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);	//GL_REPEAT 둘중 하나 선택
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	img = readImageData(present3, &imgWidth, &imgHeight, &channels);
+
+
+	glBindTexture(GL_TEXTURE_2D, textureMonkey[16]);
+	glTexImage2D(GL_TEXTURE_2D, 0, 3, imgWidth, imgHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, img);
+
+
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);	//GL_REPEAT 둘중 하나 선택
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	img = readImageData(present4, &imgWidth, &imgHeight, &channels);
+
+
+	glBindTexture(GL_TEXTURE_2D, textureMonkey[17]);
 	glTexImage2D(GL_TEXTURE_2D, 0, 3, imgWidth, imgHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, img);
 
 
